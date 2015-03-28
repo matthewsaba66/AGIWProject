@@ -27,6 +27,9 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopScoreDocCollector;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.jwat.warc.WarcReader;
 import org.jwat.warc.WarcReaderFactory;
 import org.jwat.warc.WarcRecord;
@@ -53,107 +56,160 @@ public class MainClass {
 		IndexWriter writer = new IndexWriter(index, config);
 
 		File file = new File("/home/matteo/CRAWL/ClueWeb/00.warc");
+
+		InputStream in = new FileInputStream( file );
+
+		int records = 0;
+		int errors = 0;
+
+		WarcReader reader = WarcReaderFactory.getReader( in );
+		WarcRecord record;
+		int j = 0;
+		while ( (record = reader.getNextRecord()) != null && j!= 500 ) {
+
+			++records;
+
+			if (record.diagnostics.hasErrors()) {
+				Document d = printRecord(record);
+				writer.addDocument(d);
+				j++;
+				//printRecordErrors(record);
+				//errors += record.diagnostics.getErrors().size();
+			}
+		}
+
+		System.out.println("--------------");
+		System.out.println("       Records: " + records);
+		//System.out.println("        Errors: " + errors);
+		reader.close();
+		in.close();
+		writer.close();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		/*fase query*/
+
+		/* set the maximum number of results */
+		int maxHits = 10;
+
+		/* open a directory reader and create searcher and topdocs */
+		IndexReader reader1 = DirectoryReader.open(writer.getDirectory());
+		IndexSearcher searcher = new IndexSearcher(reader1);
+		TopScoreDocCollector collector =
+				TopScoreDocCollector.create(maxHits);
+
+		/* create the query parser */
+
+		QueryParser qp = new QueryParser("payload", analyzer);
+
+
+		/* query string */
+		String querystring = "the";
+		Query q = qp.parse(querystring);
+
+		/* search into the index */
+		searcher.search(q, collector);
+		ScoreDoc[] hits = collector.topDocs().scoreDocs;
+
+		/* print results */
+		System.out.println("Found " + hits.length + " hits.");
+		for(int i=0;i<hits.length;++i) {
+			int docId = hits[i].doc;
+			Document d = searcher.doc(docId);
+			System.out.println("url: " + d.get("url")+ "\n" + d.get("payload"));
+			System.out.println("-------------------------------------------\n\n\n\n");
+		}
+
+
+	}
+
+	private static Document printRecord(WarcRecord record) throws IOException {
+		// TODO Auto-generated method stub
+		Document doc = new Document();
+		doc.add(new StringField("type", record.header.contentTypeStr, Field.Store.YES));
+
+		if(record.header.warcTargetUriUri!=null){
+			doc.add(new TextField("url", record.header.warcTargetUriUri.toString(), Field.Store.YES));
+		}
+		//doc.add(new TextField("title",getTitle(record), Field.Store.YES));
+		doc.add(new TextField("payload",getPayload(record), Field.Store.YES));
+
+		return doc;
+
+
+
+	}
+
+
+
+	private static String getTitle(WarcRecord record) throws IOException {
+		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub
+		BufferedReader payin = new BufferedReader(new InputStreamReader(record.getPayload().getInputStream()));
+		String line = "";
+		String nextLine;
+		while((nextLine = payin.readLine()) != null) {
+			line = line.concat(nextLine + "\n");
+		}
+
+		//System.out.println("LINE: ---"+line);
+
+		org.jsoup.nodes.Document doc = Jsoup.parse(line);
+		//line = doc.toString();
+		Elements titleEm = doc.select("title");
+
+
+
 		
-			InputStream in = new FileInputStream( file );
 
-			int records = 0;
-			int errors = 0;
-
-			WarcReader reader = WarcReaderFactory.getReader( in );
-			WarcRecord record;
-			int j = 0;
-			while ( (record = reader.getNextRecord()) != null && j!= 500 ) {
-
-				++records;
-
-				if (record.diagnostics.hasErrors()) {
-					Document d = printRecord(record);
-					writer.addDocument(d);
-					j++;
-					//printRecordErrors(record);
-					//errors += record.diagnostics.getErrors().size();
-				}
-			}
-
-			System.out.println("--------------");
-			System.out.println("       Records: " + records);
-			//System.out.println("        Errors: " + errors);
-			reader.close();
-			in.close();
-			writer.close();
+		return titleEm.toString();
+	}
 
 
-			/*fase query*/
 
-			/* set the maximum number of results */
-			int maxHits = 10;
-
-			/* open a directory reader and create searcher and topdocs */
-			IndexReader reader1 = DirectoryReader.open(writer.getDirectory());
-			IndexSearcher searcher = new IndexSearcher(reader1);
-			TopScoreDocCollector collector =
-					TopScoreDocCollector.create(maxHits);
-
-			/* create the query parser */
-
-			QueryParser qp = new QueryParser("payload", analyzer);
-			
-
-			/* query string */
-			String querystring = "specialist";
-			Query q = qp.parse(querystring);
-
-			/* search into the index */
-			searcher.search(q, collector);
-			ScoreDoc[] hits = collector.topDocs().scoreDocs;
-
-			/* print results */
-			System.out.println("Found " + hits.length + " hits.");
-			for(int i=0;i<hits.length;++i) {
-				int docId = hits[i].doc;
-				Document d = searcher.doc(docId);
-				System.out.println("url: " + d.get("url \n") + " body: " + d.get("payload"));
-				System.out.println("-------------------------------------------\n\n\n\n");
-			}
-
-
+	private static String getPayload(WarcRecord record) throws IOException {
+		// TODO Auto-generated method stub
+		BufferedReader payin = new BufferedReader(new InputStreamReader(record.getPayload().getInputStream()));
+		String line = "";
+		String nextLine;
+		while((nextLine = payin.readLine()) != null) {
+			line = line.concat(nextLine + "\n");
 		}
 
-		private static Document printRecord(WarcRecord record) throws IOException {
-			// TODO Auto-generated method stub
-			Document doc = new Document();
-			doc.add(new StringField("type", record.header.contentTypeStr, Field.Store.YES));
-			if(record.header.warcTargetUriStr!=null){
-				doc.add(new StringField("url", record.header.warcTargetUriStr, Field.Store.YES));
-				//System.out.println("URL: ---"+record.header.warcTargetUriStr);
-			}
-			doc.add(new TextField("payload",getPayload(record), Field.Store.YES));
+		//System.out.println("LINE: ---"+line);
 
-			//System.out.println("TYPE: ---"+record.header.contentTypeStr);
-			return doc;
+		org.jsoup.nodes.Document doc = Jsoup.parse(line);
+		//line = doc.toString();
 
 
 
+		String text = "Title: ";
+
+		for(Element div : doc.select("title")){
+			text = text.concat(div.text()+"\n");
+		}
+		text = text.concat("Body: ");
+		for(Element div : doc.select("body")){
+			text = text.concat(div.text()+"\n");
 		}
 
-		private static String getPayload(WarcRecord record) throws IOException {
-			// TODO Auto-generated method stub
-			BufferedReader payin = new BufferedReader(new InputStreamReader(record.getPayload().getInputStream()));
-			String line = "";
-			String nextLine;
-			while((nextLine = payin.readLine()) != null) {
-				line = line.concat(nextLine + "\n");
-			}
+		return text;
+	}
 
-			//System.out.println("LINE: ---"+line);
 
-			//org.jsoup.nodes.Document doc = Jsoup.parse(line);
-			//doc.toString();
-
-			return line;
-		}
-
-	
 }
 
 
