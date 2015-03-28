@@ -44,67 +44,8 @@ public class WarcParse {
 
 
 	public static IndexWriter mkWriter() throws IOException, ParseException {
+		return null;
 
-		/* create a standard analyzer */
-		StandardAnalyzer analyzer = new StandardAnalyzer( CharArraySet.EMPTY_SET);
-
-		/* create the index in the pathToFolder or in RAM (choose one) */
-		//File file = new File("pathToFolder");
-		//Path path = Paths.get("/home/matteo/test/");
-		//Directory index = FSDirectory.open(path);
-		Directory index =new RAMDirectory();
-
-
-		/* set an index config */
-		IndexWriterConfig config = new IndexWriterConfig( analyzer);
-		config.setOpenMode(OpenMode.CREATE);
-		/* create the writer */
-		IndexWriter writer = new IndexWriter(index, config);
-
-		File file = new File("/home/matteo/CRAWL/ClueWeb/00.warc");
-		try {
-			InputStream in = new FileInputStream( file );
-
-			int records = 0;
-			int errors = 0;
-
-			WarcReader reader = WarcReaderFactory.getReader( in );
-			WarcRecord record;
-			int j = 0;
-			while ( (record = reader.getNextRecord()) != null && j!= 500 ) {
-
-				++records;
-
-				if (record.diagnostics.hasErrors()) {
-					Document d = printRecord(record);
-					writer.addDocument(d);
-					j++;
-					//printRecordErrors(record);
-					//errors += record.diagnostics.getErrors().size();
-				}
-			}
-
-			System.out.println("--------------");
-			System.out.println("       Records: " + records);
-			//System.out.println("        Errors: " + errors);
-			reader.close();
-			in.close();
-			writer.close();
-
-
-
-
-
-		}
-		catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return writer;
 	}
 
 
